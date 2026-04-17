@@ -1,3 +1,4 @@
+//mvn javafx:run
 package org.example.ui;
 
 import javafx.application.Application;
@@ -289,3 +290,5 @@ public class MainUI extends Application {
         launch(args);
     }
 }
+
+//mvn javafx:run
