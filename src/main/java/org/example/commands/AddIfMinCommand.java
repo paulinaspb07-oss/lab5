@@ -3,7 +3,7 @@ package org.example.commands;
 import static org.example.Main.*;
 import org.example.model.Person;
 import java.io.BufferedReader;
-import org.example.inputReader.ReadPerson;
+import org.example.inputreader.ReadPerson;
 
 public class AddIfMinCommand implements Command{
     @Override
