@@ -16,7 +16,6 @@ import org.example.model.*;
 import org.example.parser.XMLParser;
 
 import java.io.*;
-import java.time.LocalDateTime;
 import java.util.List;
 
 public class MainUI extends Application {
@@ -33,19 +32,41 @@ public class MainUI extends Application {
             fileName = "data.xml";
         }
 
-
+        // Load data from XML at startup
         loadDataFromFile();
 
+        // Build table columns
         buildTableColumns();
-        createButtons(primaryStage);
 
-        Scene scene = new Scene(createLayout(), 1100, 650);
+        // Create buttons
+        Button addBtn = new Button("Add");
+        Button editBtn = new Button("Edit");
+        Button deleteBtn = new Button("Delete");
+        Button refreshBtn = new Button("Refresh");
+        Button saveBtn = new Button("Save");
+
+        addBtn.setOnAction(e -> showAddDialog());
+        editBtn.setOnAction(e -> showEditDialog());
+        deleteBtn.setOnAction(e -> deleteSelected());
+        refreshBtn.setOnAction(e -> refreshFromFile());
+        saveBtn.setOnAction(e -> saveToFile());
+
+        HBox buttonBar = new HBox(10, addBtn, editBtn, deleteBtn, refreshBtn, saveBtn);
+        buttonBar.setPadding(new Insets(10));
+
+        BorderPane root = new BorderPane();
+        root.setTop(buttonBar);
+        root.setCenter(tableView);
+
+        Scene scene = new Scene(root, 1100, 650);
         primaryStage.setTitle("Laboratory Management System");
         primaryStage.setScene(scene);
         primaryStage.show();
     }
 
     private void buildTableColumns() {
+        tableView.getColumns().clear();
+
         TableColumn<Person, Integer> idCol = new TableColumn<>("ID");
         idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
 
@@ -77,39 +98,10 @@ public class MainUI extends Application {
         tableView.setItems(personList);
     }
 
-    private void createButtons(Stage stage) {
-        Button addBtn = new Button("Add");
-        Button editBtn = new Button("Edit");
-        Button deleteBtn = new Button("Delete");
-        Button refreshBtn = new Button("Refresh");
-        Button saveBtn = new Button("Save");
-
-        addBtn.setOnAction(e -> showAddDialog());
-        editBtn.setOnAction(e -> showEditDialog());
-        deleteBtn.setOnAction(e -> deleteSelected());
-        refreshBtn.setOnAction(e -> refreshFromFile());   
-        saveBtn.setOnAction(e -> saveToFile());
-
-        HBox buttonBar = new HBox(10, addBtn, editBtn, deleteBtn, refreshBtn, saveBtn);
-        buttonBar.setPadding(new Insets(10));
-        ((BorderPane) createLayout()).setTop(buttonBar);
-    }
-
-    private BorderPane createLayout() {
-        BorderPane root = new BorderPane();
-        root.setCenter(tableView);
-        return root;
-    }
-
-
-    private void refreshFromFile() {
-        loadDataFromFile();
-    }
-
     private void loadDataFromFile() {
         File file = new File(fileName);
         if (!file.exists()) {
-            showAlert("Info", "File not found. Starting empty.");
+            System.out.println("File not found. Starting with empty collection.");
             collectionManager.clear();
             refreshTable();
             return;
@@ -135,6 +127,10 @@ public class MainUI extends Application {
         }
     }
 
+    private void refreshFromFile() {
+        loadDataFromFile();
+    }
+
     private void refreshTable() {
         personList.clear();
         personList.addAll(collectionManager.getAllPersons());
@@ -145,22 +141,20 @@ public class MainUI extends Application {
         dialog.setTitle("Add Person");
         dialog.setHeaderText("Enter all fields");
 
+        // Simple text fields for all properties
         TextField nameField = new TextField();
         TextField heightField = new TextField();
-        ComboBox<Color> hairColorBox = new ComboBox<>(FXCollections.observableArrayList(Color.values()));
-        ComboBox<Country> nationalityBox = new ComboBox<>(FXCollections.observableArrayList(Country.values()));
-
         TextField coordXField = new TextField();
         TextField coordYField = new TextField();
-
-       
         TextField locXField = new TextField();
         TextField locYField = new TextField();
         TextField locZField = new TextField();
+        ComboBox<Color> hairColorBox = new ComboBox<>(FXCollections.observableArrayList(Color.values()));
+        ComboBox<Country> nationalityBox = new ComboBox<>(FXCollections.observableArrayList(Country.values()));
 
         VBox form = new VBox(10,
                 new Label("Name:"), nameField,
-                new Label("Height (float):"), heightField,
+                new Label("Height (float > 0):"), heightField,
                 new Label("Hair Color:"), hairColorBox,
                 new Label("Nationality:"), nationalityBox,
                 new Label("Coordinates X (long):"), coordXField,
@@ -176,23 +170,21 @@ public class MainUI extends Application {
             if (button == ButtonType.OK) {
                 try {
                     float height = Float.parseFloat(heightField.getText());
-                    Coordinates coords = new Coordinates(
-                            Long.parseLong(coordXField.getText()),
-                            Double.parseDouble(coordYField.getText())
-                    );
-                    Location loc = new Location(
-                            Double.parseDouble(locXField.getText()),
-                            Double.parseDouble(locYField.getText()),
-                            Integer.parseInt(locZField.getText())
-                    );
+                    long coordX = Long.parseLong(coordXField.getText());
+                    double coordY = Double.parseDouble(coordYField.getText());
+                    Coordinates coords = new Coordinates(coordX, coordY);
+                    double locX = Double.parseDouble(locXField.getText());
+                    Double locY = Double.parseDouble(locYField.getText());
+                    Integer locZ = Integer.parseInt(locZField.getText());
+                    Location location = new Location(locX, locY, locZ);
                     Person p = new Person(
                             nameField.getText(),
                             coords,
                             height,
-                            null, 
+                            null, // birthday optional
                             hairColorBox.getValue(),
                             nationalityBox.getValue(),
-                            loc
+                            location
                     );
                     return p;
                 } catch (Exception e) {
@@ -221,7 +213,7 @@ public class MainUI extends Application {
         }
         Dialog<Person> dialog = new Dialog<>();
         dialog.setTitle("Edit Person");
-        dialog.setHeaderText("Change values (fields cannot be null except birthday)");
+        dialog.setHeaderText("Change values");
 
         TextField nameField = new TextField(selected.getName());
         TextField heightField = new TextField(String.valueOf(selected.getHeight()));
