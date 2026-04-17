@@ -1,6 +1,6 @@
 package org.example.commands;
 
-import org.example.inputReader.ReadPerson;
+import org.example.inputreader.ReadPerson;
 import org.example.model.Person;
 import java.io.BufferedReader;
 import static org.example.Main.*;

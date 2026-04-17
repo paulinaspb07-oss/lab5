@@ -37,11 +37,11 @@ public class Main {
         COMMANDS.put("execute_script", new ExecuteScriptCommand());
         COMMANDS.put("exit", new ExitCommand());
         COMMANDS.put("add_if_min", new AddIfMinCommand());
- //       COMMANDS.put("remove_greater", new RemoveGreaterCommand());
+        COMMANDS.put("remove_greater", new RemoveGreaterCommand());
         COMMANDS.put("remove_lower", new RemoveLowerCommand());
         COMMANDS.put("filter_starts_with_name", new FilterStartsWithNameCommand());
- //       COMMANDS.put("print_ascending", new PrintAscendingCommand());
- //       COMMANDS.put("print_descending", new PrintDescendingCommand());
+        COMMANDS.put("print_ascending", new PrintAscendingCommand());
+        COMMANDS.put("print_descending", new PrintDescendingCommand());
     }
 
 
