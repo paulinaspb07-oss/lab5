@@ -4,6 +4,7 @@ import org.example.model.*;
 import java.io.BufferedReader;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 public class ReadPerson {
 
@@ -23,11 +24,20 @@ public class ReadPerson {
         double coordY = Double.parseDouble(reader.readLine());
         Coordinates coords = new Coordinates(coordX, coordY);
 
-        System.out.print("Enter birthday (YYYY-MM-DDTHH:MM:SS, or leave empty): ");
-        String bdayStr = reader.readLine();
+        // Birthday validation
         LocalDateTime birthday = null;
-        if (bdayStr != null && !bdayStr.trim().isEmpty()) {
-            birthday = LocalDateTime.parse(bdayStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        while (true) {
+            System.out.print("Enter birthday (YYYY-MM-DDTHH:MM:SS, or leave empty): ");
+            String bdayStr = reader.readLine();
+            if (bdayStr == null || bdayStr.trim().isEmpty()) {
+                break; // birthday remains null
+            }
+            try {
+                birthday = LocalDateTime.parse(bdayStr.trim(), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+                break; // valid, exit loop
+            } catch (DateTimeParseException e) {
+                System.out.println("Invalid date format. Please use YYYY-MM-DDTHH:MM:SS (e.g., 1990-12-31T14:30:00) or leave empty.");
+            }
         }
 
         System.out.print("Enter hair color (GREEN, RED, BLUE, YELLOW, ORANGE, WHITE): ");
