@@ -135,6 +135,7 @@ public class MainUI extends Application {
     private void refreshTable() {
         personList.clear();
         personList.addAll(collectionManager.getAllPersons());
+        //Maybe try to change it so that it saves time 
     }
 
     private void showAddDialog() {
@@ -182,7 +183,7 @@ public class MainUI extends Application {
                             nameField.getText(),
                             coords,
                             height,
-                            null, // birthday optional
+                            null, 
                             hairColorBox.getValue(),
                             nationalityBox.getValue(),
                             location
