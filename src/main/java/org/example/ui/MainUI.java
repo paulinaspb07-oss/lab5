@@ -14,8 +14,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.example.collection.CollectionManager;
 import org.example.model.*;
-import org.example.parser.XMLParser;
-
+import org.example.storage.XmlFileStorage;
 import java.io.*;
 import java.util.List;
 
@@ -25,6 +24,7 @@ public class MainUI extends Application {
     private ObservableList<Person> personList = FXCollections.observableArrayList();
     private CollectionManager collectionManager = new CollectionManager();
     private String fileName;
+    private XmlFileStorage fileStorage = new XmlFileStorage();
 
     @Override
     public void start(Stage primaryStage) {
@@ -107,8 +107,8 @@ public class MainUI extends Application {
             refreshTable();
             return;
         }
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"))) {
-            List<Person> persons = XMLParser.readPersons(reader);
+        try {
+            List<Person> persons = fileStorage.load(fileName);
             collectionManager.clear();
             for (Person p : persons) {
                 collectionManager.addPerson(p);
@@ -120,8 +120,8 @@ public class MainUI extends Application {
     }
 
     private void saveToFile() {
-        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName), "UTF-8"))) {
-            XMLParser.writePersons(writer, collectionManager.getAllPersons());
+        try {
+            fileStorage.save(fileName, collectionManager.getAllPersons());
             showAlert("Saved", "Data saved to " + fileName);
         } catch (Exception e) {
             showAlert("Save Error", "Failed to save: " + e.getMessage());

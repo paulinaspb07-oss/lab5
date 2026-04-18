@@ -2,8 +2,8 @@ package org.example.model;
 
 public class Location {
     private double x;
-    private Double y; // not null
-    private Integer z; // not null
+    private Double y;
+    private Integer z;
 
     public Location(double x, Double y, Integer z) {
         this.x = x;

@@ -42,7 +42,7 @@ public class XMLParser {
                 int id = Integer.parseInt(getTagValue("id", personElem));
                 String name = getTagValue("name", personElem);
                 Coordinates coords = readCoordinates(getChildElement(personElem, "coordinates"));
-                Date creationDate = java.sql.Date.valueOf(getTagValue("creationDate", personElem));
+                Date creationDate = new Date(Long.parseLong(getTagValue("creationDate", personElem)));
                 float height = Float.parseFloat(getTagValue("height", personElem));
                 LocalDateTime birthday = null;
                 Element bdayElem = getChildElement(personElem, "birthday");
@@ -83,7 +83,7 @@ public class XMLParser {
             personElem.appendChild(coordsElem);
             addElement(doc, coordsElem, "x", String.valueOf(p.getCoordinates().getX()));
             addElement(doc, coordsElem, "y", String.valueOf(p.getCoordinates().getY()));
-            addElement(doc, personElem, "creationDate", p.getCreationDate().toString());
+            addElement(doc, personElem, "creationDate", String.valueOf(p.getCreationDate().getTime()));
             addElement(doc, personElem, "height", String.valueOf(p.getHeight()));
             if (p.getBirthday() != null) addElement(doc, personElem, "birthday", p.getBirthday().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
             if (p.getHairColor() != null) addElement(doc, personElem, "hairColor", p.getHairColor().name());
@@ -109,7 +109,8 @@ public class XMLParser {
         NodeList list = element.getElementsByTagName(tag);
         if (list.getLength() == 0) return null;
         Node node = list.item(0);
-        return node.getTextContent();
+        String text = node.getTextContent();
+        return text == null ? null : text.trim();
     }
 
     private static Element getChildElement(Element parent, String tag) {
