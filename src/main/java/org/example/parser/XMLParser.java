@@ -22,10 +22,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 public class XMLParser {
     public static List<Person> readPersons(BufferedReader reader) throws ParserConfigurationException, IOException, SAXException, TransformerException {
@@ -36,10 +33,13 @@ public class XMLParser {
 
         NodeList personNodes = doc.getElementsByTagName("person");
         List<Person> persons = new ArrayList<>();
+        Set<Integer> usedIds = new HashSet<>();
         for (int i = 0; i < personNodes.getLength(); i++) {
             Element personElem = (Element) personNodes.item(i);
-            try {
                 int id = Integer.parseInt(getTagValue("id", personElem));
+                if (!usedIds.add(id)) {
+                    throw new IllegalArgumentException("Duplicate id in XML: " + id);
+                }
                 String name = getTagValue("name", personElem);
                 Coordinates coords = readCoordinates(getChildElement(personElem, "coordinates"));
                 Date creationDate = new Date(Long.parseLong(getTagValue("creationDate", personElem)));
@@ -59,9 +59,6 @@ public class XMLParser {
 
                 Person p = new Person(id, name, coords, creationDate, height, birthday, hairColor, nationality, location);
                 persons.add(p);
-            } catch (Exception e) {
-                System.err.println("Error parsing person element: " + e.getMessage());
-            }
         }
         return persons;
     }

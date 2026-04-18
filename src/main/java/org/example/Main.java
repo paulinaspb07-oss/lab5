@@ -1,19 +1,15 @@
 package org.example;
 
 import java.io.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import javax.xml.parsers.*;
 import javax.xml.transform.*;
 import org.example.commands.*;
-
+import org.example.storage.XmlFileStorage;
 
 import org.example.collection.CollectionManager;
 import org.example.model.*;
-import org.example.parser.XMLParser;
 import org.w3c.dom.*;
-import org.xml.sax.SAXException;
 
 
 
@@ -24,6 +20,7 @@ public class Main {
     public static int scriptDepth = 0;
 
     private static final Map<String, Command> COMMANDS = new HashMap<>();
+    private static final  XmlFileStorage fileStorage = new XmlFileStorage();
 
     static {
         COMMANDS.put("help", new HelpCommand());
@@ -42,12 +39,15 @@ public class Main {
         COMMANDS.put("filter_starts_with_name", new FilterStartsWithNameCommand());
         COMMANDS.put("print_ascending", new PrintAscendingCommand());
         COMMANDS.put("print_descending", new PrintDescendingCommand());
+        COMMANDS.put("load", new LoadCommand());
     }
 
 
     public static void main(String[] args) {
-        fileName = System.getenv("FILE_NAME");
-        if (fileName == null || fileName.trim().isEmpty()) {
+        if (args != null && args.length > 0 && args[0] != null && !args[0].trim().isEmpty()) {
+            fileName = args[0].trim();
+            System.out.println("Using file from args: " + fileName);
+        } else {
             fileName = "data.xml";
             System.out.println("FILE_NAME not set. Using default: " + fileName);
         }
@@ -63,24 +63,36 @@ public class Main {
             System.out.println("File not found. Starting with empty collection.");
             return;
         }
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"))) {
-            List<Person> persons = XMLParser.readPersons(reader);
+        try {
+            List<Person> persons = fileStorage.load(fileName);
             for (Person p : persons) {
                 collectionManager.addPerson(p);
             }
             System.out.println("Collection loaded from file.");
-        } catch (IOException | ParserConfigurationException | SAXException | TransformerException e) {
+        } catch (Exception e) {
             System.err.println("Error loading collection: " + e.getMessage());
         }
     }
+    public static void loadCollectionFromFile(String newFileName) {
+        if ( newFileName != null && !newFileName.trim().isEmpty()){
+            fileName = newFileName.trim();
+        }
+        loadCollectionFromFile();
+    }
 
     public static void saveCollectionToFile() {
-        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName), "UTF-8"))) {
-            XMLParser.writePersons(writer, collectionManager.getAllPersons());
+        try {
+            fileStorage.save(fileName, collectionManager.getAllPersons());
             System.out.println("Collection saved to file.");
-        } catch (IOException | TransformerException | ParserConfigurationException e) {
+        } catch (Exception e) {
             System.err.println("Error saving collection: " + e.getMessage());
         }
+    }
+    public static void saveCollectionToFile(String newFileName){
+        if (newFileName != null && !newFileName.trim().isEmpty()){
+            fileName = newFileName.trim();
+        }
+        saveCollectionToFile();
     }
 
     public static void interactiveMode() {

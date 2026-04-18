@@ -20,7 +20,11 @@ public class CollectionManager {
     }
 
     public void addPerson(Person p) {
-        if (p.getId() == 0) p.generateId();
+        if (p.getId() == 0) {
+            p.generateId();
+    } else {
+            Person.updateNextId(p.getId());
+    }
         collection.put(p.getId(), p);
     }
 

@@ -54,6 +54,11 @@ public class Person implements Comparable<Person> {
     public void generateId() {
         if (id == 0) id = nextId++;
     }
+    public static void updateNextId(int id){
+        if (id >= nextId) {
+            nextId = id + 1;
+        }
+    }
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
