@@ -18,4 +18,21 @@
             <z>2</z>
         </location>
     </person>
+    <person>
+        <id>3</id>
+        <name>a</name>
+        <coordinates>
+            <x>1</x>
+            <y>1.0</y>
+        </coordinates>
+        <creationDate>1776519424491</creationDate>
+        <height>11.0</height>
+        <hairColor>YELLOW</hairColor>
+        <nationality>FRANCE</nationality>
+        <location>
+            <x>1.0</x>
+            <y>1.0</y>
+            <z>1</z>
+        </location>
+    </person>
 </persons>
