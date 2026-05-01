@@ -35,4 +35,22 @@
             <z>1</z>
         </location>
     </person>
+    <person>
+        <id>4</id>
+        <name>poli</name>
+        <coordinates>
+            <x>3</x>
+            <y>4.0</y>
+        </coordinates>
+        <creationDate>1776586446278</creationDate>
+        <height>2.0</height>
+        <birthday>2277-12-15T20:14:54</birthday>
+        <hairColor>RED</hairColor>
+        <nationality>ITALY</nationality>
+        <location>
+            <x>3.0</x>
+            <y>8.0</y>
+            <z>9</z>
+        </location>
+    </person>
 </persons>
