@@ -4,7 +4,6 @@ package org.example.ui;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -13,9 +12,12 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import org.example.auth.*;
 import org.example.collection.CollectionManager;
 import org.example.model.*;
 import org.example.storage.XmlFileStorage;
+import org.example.auth.User;
+import org.example.auth.UserFileStorage;
 import java.io.*;
 import java.util.List;
 
@@ -26,6 +28,10 @@ public class MainUI extends Application {
     private CollectionManager collectionManager = new CollectionManager();
     private String fileName;
     private XmlFileStorage fileStorage = new XmlFileStorage();
+    private UserFileStorage userFileStorage = new UserFileStorage("users.csv");
+    private User currentUser;
+    private Button editBtn;
+    private Button deleteBtn;
 
     @Override
     public void start(Stage primaryStage) {
@@ -34,18 +40,59 @@ public class MainUI extends Application {
             fileName = "data.xml";
         }
 
-        // Load data from XML at startup
+        showLoginWindow(primaryStage);
+    }
+
+    private void showLoginWindow(Stage stage) {
+        TextField loginField = TextField();
+        PasswordField passwordField = new PasswordField();
+
+        loginBth.setOnAction(e -> {
+            User user = userStorage.login(loginField.getText(), passwordField.getText());
+
+            if (user == null) {
+                showAlert("Ошибка входа", "Неверный логин или пароль");
+                return;
+            }
+
+            currentUser = user;
+            openMainWindow(stage);
+        });
+
+        registerBtn.setOnAction(e ->{
+            try {
+                currentUser = userStorage.register(loginField.getText(),passwordField.getText());
+                showAlert("Регистрация", "Ползователь создан: ", + currentUser.getLogin());
+                openMainWindow(stage);
+            } catch (Exception ex) {
+                showAlert("Ощибка регистрации", ex.getMessage());
+            }
+        });
+
+        VBox root = new VBox(10,
+                new Label("Логин:"), loginField,
+                new Label("Пароль"), passwordField,
+                new HBox(10, loginBtn, registerBtn)
+        );
+
+        root.setPadding(new Insets(20));
+
+        stage.setTitle("Авторизация");
+        stage.setScene(new Scene(root, 300, 200));
+        stage.show();
+    }
+
+    private void openMainWindow(Stage primaryStage) {
         loadDataFromFile();
-
-        // Build table columns
-        buildTableColumns();
-
-        // Create buttons
+        buildTableColums();
         Button addBtn = new Button("Add");
-        Button editBtn = new Button("Edit");
-        Button deleteBtn = new Button("Delete");
+        editBtn = new Button("Edit");
+        deleteBtn = new Button("Delete");
         Button refreshBtn = new Button("Refresh");
         Button saveBtn = new Button("Save");
+
+        editBtn.setDisable(true);
+        deleteBtn.setDisable(true);
 
         addBtn.setOnAction(e -> showAddDialog());
         editBtn.setOnAction(e -> showEditDialog());
@@ -53,51 +100,28 @@ public class MainUI extends Application {
         refreshBtn.setOnAction(e -> refreshFromFile());
         saveBtn.setOnAction(e -> saveToFile());
 
+        tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, selected) -> {
+            boolean canEdit = selected != null && selected.getOwnerID() == currentUser.getId();
+
+            editBtn.setDisable(!canEdit);
+            deleteBtn.setDisable(!canEdit);
+        });
+
+        Label userLabel = new Label("Current user: " + currentUser.getLogin() + "| id = " + currentUser.getId());
+
         HBox buttonBar = new HBox(10, addBtn, editBtn, deleteBtn, refreshBtn, saveBtn);
         buttonBar.setPadding(new Insets(10));
 
+        VBox topPanel = new VBox(5, userLabel, buttonBar);
+
         BorderPane root = new BorderPane();
-        root.setTop(buttonBar);
-        root.setCenter(tableView);
+        root.setTop(topPanel);
+        root.getCenter(tableView);
 
         Scene scene = new Scene(root, 1100, 650);
         primaryStage.setTitle("Laboratory Management System");
         primaryStage.setScene(scene);
         primaryStage.show();
-    }
-
-    private void buildTableColumns() {
-        tableView.getColumns().clear();
-
-        TableColumn<Person, Integer> idCol = new TableColumn<>("ID");
-        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
-
-        TableColumn<Person, String> nameCol = new TableColumn<>("Name");
-        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
-
-        TableColumn<Person, Float> heightCol = new TableColumn<>("Height");
-        heightCol.setCellValueFactory(new PropertyValueFactory<>("height"));
-
-        TableColumn<Person, Color> hairCol = new TableColumn<>("Hair Color");
-        hairCol.setCellValueFactory(new PropertyValueFactory<>("hairColor"));
-
-        TableColumn<Person, Country> natCol = new TableColumn<>("Nationality");
-        natCol.setCellValueFactory(new PropertyValueFactory<>("nationality"));
-
-        TableColumn<Person, String> coordsCol = new TableColumn<>("Coordinates");
-        coordsCol.setCellValueFactory(c -> {
-            Coordinates coord = c.getValue().getCoordinates();
-            return new javafx.beans.property.SimpleStringProperty(coord == null ? "" : coord.toString());
-        });
-
-        TableColumn<Person, String> locCol = new TableColumn<>("Location");
-        locCol.setCellValueFactory(c -> {
-            Location loc = c.getValue().getLocation();
-            return new javafx.beans.property.SimpleStringProperty(loc == null ? "" : loc.toString());
-        });
-
-        tableView.getColumns().addAll(idCol, nameCol, heightCol, hairCol, natCol, coordsCol, locCol);
-        tableView.setItems(personList);
     }
 
     private void loadDataFromFile() {

@@ -37,6 +37,11 @@ public class XMLParser {
         for (int i = 0; i < personNodes.getLength(); i++) {
             Element personElem = (Element) personNodes.item(i);
                 int id = Integer.parseInt(getTagValue("id", personElem));
+                int ownerID = 0;
+                String ownerText = getTagValue("ownerID", personElem);
+                if (ownerText != null && !ownerText.isEmpty()) {
+                    ownerID = Integer.parseInt(ownerText);
+                }
                 if (!usedIds.add(id)) {
                     throw new IllegalArgumentException("Duplicate id in XML: " + id);
                 }
@@ -58,6 +63,7 @@ public class XMLParser {
                 if (locElem != null) location = readLocation(locElem);
 
                 Person p = new Person(id, name, coords, creationDate, height, birthday, hairColor, nationality, location);
+                p.setOwnerID(ownerID);
                 persons.add(p);
         }
         return persons;
@@ -75,6 +81,7 @@ public class XMLParser {
             root.appendChild(personElem);
 
             addElement(doc, personElem, "id", String.valueOf(p.getId()));
+            addElement(doc, personElem, "ownerID", String.valueOf(p.getOwnerID()));
             addElement(doc, personElem, "name", p.getName());
             Element coordsElem = doc.createElement("coordinates");
             personElem.appendChild(coordsElem);

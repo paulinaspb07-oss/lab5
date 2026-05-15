@@ -5,6 +5,7 @@ import java.util.Date;
 
 public class Person implements Comparable<Person> {
     private int id;
+    private int ownerID;
     private String name;
     private Coordinates coordinates;
     private Date creationDate;
@@ -71,6 +72,8 @@ public class Person implements Comparable<Person> {
     public Color getHairColor() { return hairColor; }
     public Country getNationality() { return nationality; }
     public Location getLocation() { return location; }
+    public int getOwnerID() { return ownerID; }
+    public void setOwnerID(int ownerID) { this.ownerID = ownerID; }
 
     @Override
     public int compareTo(Person o) {
@@ -85,6 +88,7 @@ public class Person implements Comparable<Person> {
     public String toString() {
         return "Person{" +
                 "id=" + id +
+                ", ownerID=" + ownerID +
                 ", name='" + name + '\'' +
                 ", coordinates=" + coordinates +
                 ", creationDate=" + creationDate +

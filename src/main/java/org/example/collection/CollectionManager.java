@@ -28,6 +28,11 @@ public class CollectionManager {
         collection.put(p.getId(), p);
     }
 
+    public void addPerson(Person p, int ownerID) {
+        p.setOwnerID(ownerID);
+        addPerson(p);
+    }
+
     public Person getPersonById(int id) {
         return collection.get(id);
     }
@@ -39,14 +44,58 @@ public class CollectionManager {
         }
     }
 
+    public boolean updatePerson(int id, Person newPerson, int userID) {
+        if (!canModify(id, userID)) {
+            return false;
+        }
+        Person oldPerson = collection.get(id);
+
+        newPerson.setId(id);
+        newPerson.setOwnerID(oldPerson.getOwnerID());
+        newPerson.setCreationDate(oldPerson.getCreationDate());
+
+        collection.put(id, newPerson);
+        return true;
+    }
+
+    public boolean canModify (int id, int userID) {
+        Person p = collection.get(id);
+        return p != null && p.getOwnerID() == userID;
+    }
+
     public void removeById(int id) {
         if (collection.remove(id) != null) System.out.println("Element removed.");
         else System.out.println("Element not found.");
     }
 
+    public boolean removeByID(int id, int userID) {
+        if (!canModify(id, userID)) {
+            return false;
+        }
+
+        collection.remove(id);
+        return true;
+    }
+
     public void clear() {
         collection.clear();
         System.out.println("Collection cleared.");
+    }
+
+    public int clearByOwner(int userID) {
+        List<Integer> idsToRemove = new ArrayList<>();
+
+        for (Person p : collection.values()) {
+            if (p.getOwnerID() == userID) {
+                idsToRemove.add(p.getId());
+            }
+        }
+
+        for (Integer id : idsToRemove) {
+            collection.remove(id);
+        }
+
+        return idsToRemove.size();
     }
 
     public Collection<Person> getAllPersons() {
