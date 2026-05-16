@@ -43,7 +43,7 @@ public class MainUI extends Application {
     }
 
     private void showLoginWindow(Stage stage) {
-        TextField loginField = TextField();
+        TextField loginField = new TextField();
         PasswordField passwordField = new PasswordField();
 
         Button loginBtn = new Button("Login");
@@ -64,7 +64,7 @@ public class MainUI extends Application {
         registerBtn.setOnAction(e ->{
             try {
                 currentUser = userFileStorage.register(loginField.getText(),passwordField.getText());
-                showAlert("Регистрация", "Ползователь создан: ", + currentUser.getLogin());
+                showAlert("Регистрация", "Ползователь создан: ");
                 openMainWindow(stage);
             } catch (Exception ex) {
                 showAlert("Ощибка регистрации", ex.getMessage());
