@@ -224,7 +224,7 @@ public class MainUI extends Application {
 
         dialog.showAndWait().ifPresent(person -> {
             try {
-                collectionManager.addPerson(person);
+                collectionManager.addPerson(person, currentUser.getId());
                 refreshTable();
             } catch (IllegalArgumentException e) {
                 showAlert("Validation Error", e.getMessage());
@@ -236,6 +236,10 @@ public class MainUI extends Application {
         Person selected = tableView.getSelectionModel().getSelectedItem();
         if (selected == null) {
             showAlert("No Selection", "Please select a person to edit.");
+            return;
+        }
+        if (selected.getOwnerID() != currentUser.getId()) {
+            showAlert("Access denied", "Вы не можете изменять чужой объект");
             return;
         }
         Dialog<Person> dialog = new Dialog<>();
@@ -283,8 +287,15 @@ public class MainUI extends Application {
 
         dialog.showAndWait().ifPresent(updated -> {
             try {
-                collectionManager.updatePerson(updated.getId(), updated);
+                boolean success = collectionManager.updatePerson(updated.getId(), updated, currentUser.getId());
+
+                if (!success) {
+                    showAlert("Access denied", "Вы не можете изменять чужой объект");
+                    return;
+                }
+
                 refreshTable();
+
             } catch (IllegalArgumentException e) {
                 showAlert("Validation Error", e.getMessage());
             }
@@ -297,9 +308,19 @@ public class MainUI extends Application {
             showAlert("No Selection", "Please select a person to delete.");
             return;
         }
+        if (selected.getOwnerID() != currentUser.getId()) {
+            showAlert("Access denied", "Вы не можете удалять чужой объект");
+            return;
+        }
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Delete " + selected.getName() + "?", ButtonType.YES, ButtonType.NO);
         if (confirm.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
-            collectionManager.removeById(selected.getId());
+            boolean success = collectionManager.removeByID(selected.getId(), currentUser.getId());
+
+            if (!success) {
+                showAlert("Access denied", "Вы не можете удалять чужой объект");
+                return;
+            }
+
             refreshTable();
         }
     }
