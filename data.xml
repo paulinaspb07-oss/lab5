@@ -74,4 +74,22 @@
             <z>12</z>
         </location>
     </person>
+    <person>
+        <id>6</id>
+        <ownerID>3</ownerID>
+        <name>Test2</name>
+        <coordinates>
+            <x>12</x>
+            <y>12.0</y>
+        </coordinates>
+        <creationDate>1778938699936</creationDate>
+        <height>12.0</height>
+        <hairColor>GREEN</hairColor>
+        <nationality>RUSSIA</nationality>
+        <location>
+            <x>12.0</x>
+            <y>12.0</y>
+            <z>12</z>
+        </location>
+    </person>
 </persons>
