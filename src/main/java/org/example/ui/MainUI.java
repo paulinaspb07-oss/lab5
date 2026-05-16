@@ -64,7 +64,7 @@ public class MainUI extends Application {
         registerBtn.setOnAction(e ->{
             try {
                 currentUser = userFileStorage.register(loginField.getText(),passwordField.getText());
-                showAlert("Регистрация", "Ползователь создан: ");
+                showAlert("Регистрация", "Ползователь создан: " + currentUser.getLogin());
                 openMainWindow(stage);
             } catch (Exception ex) {
                 showAlert("Ощибка регистрации", ex.getMessage());
