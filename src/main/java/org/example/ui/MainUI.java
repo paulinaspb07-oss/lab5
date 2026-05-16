@@ -12,7 +12,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import org.example.auth.*;
 import org.example.collection.CollectionManager;
 import org.example.model.*;
 import org.example.storage.XmlFileStorage;
@@ -47,8 +46,11 @@ public class MainUI extends Application {
         TextField loginField = TextField();
         PasswordField passwordField = new PasswordField();
 
-        loginBth.setOnAction(e -> {
-            User user = userStorage.login(loginField.getText(), passwordField.getText());
+        Button loginBtn = new Button("Login");
+        Button registerBtn = new Button("Register");
+
+        loginBtn.setOnAction(e -> {
+            User user = userFileStorage.login(loginField.getText(), passwordField.getText());
 
             if (user == null) {
                 showAlert("Ошибка входа", "Неверный логин или пароль");
@@ -61,7 +63,7 @@ public class MainUI extends Application {
 
         registerBtn.setOnAction(e ->{
             try {
-                currentUser = userStorage.register(loginField.getText(),passwordField.getText());
+                currentUser = userFileStorage.register(loginField.getText(),passwordField.getText());
                 showAlert("Регистрация", "Ползователь создан: ", + currentUser.getLogin());
                 openMainWindow(stage);
             } catch (Exception ex) {
@@ -84,7 +86,8 @@ public class MainUI extends Application {
 
     private void openMainWindow(Stage primaryStage) {
         loadDataFromFile();
-        buildTableColums();
+        buildTableColumns();
+
         Button addBtn = new Button("Add");
         editBtn = new Button("Edit");
         deleteBtn = new Button("Delete");
@@ -116,7 +119,7 @@ public class MainUI extends Application {
 
         BorderPane root = new BorderPane();
         root.setTop(topPanel);
-        root.getCenter(tableView);
+        root.setCenter(tableView);
 
         Scene scene = new Scene(root, 1100, 650);
         primaryStage.setTitle("Laboratory Management System");
@@ -142,6 +145,46 @@ public class MainUI extends Application {
         } catch (Exception e) {
             showAlert("Load Error", "Could not load from file: " + e.getMessage());
         }
+    }
+
+    private void buildTableColumns() {
+        tableView.getColumns().clear();
+        tableView.setItems(personList);
+
+        TableColumn<Person, Integer> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+
+        TableColumn<Person, Integer> ownerCol = new TableColumn<>("Owner ID");
+        ownerCol.setCellValueFactory(new PropertyValueFactory<>("ownerID"));
+
+        TableColumn<Person, String> nameCol = new TableColumn<>("Name");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+
+        TableColumn<Person, Float> heightCol = new TableColumn<>("Height");
+        heightCol.setCellValueFactory(new PropertyValueFactory<>("height"));
+
+        TableColumn<Person, Color> hairCol = new TableColumn<>("Hair Color");
+        hairCol.setCellValueFactory(new PropertyValueFactory<>("hairColor"));
+
+        TableColumn<Person, Country> natCol = new TableColumn<>("Nationality");
+        natCol.setCellValueFactory(new PropertyValueFactory<>("nationality"));
+
+        TableColumn<Person, Coordinates> coordsCol = new TableColumn<>("Coordinates");
+        coordsCol.setCellValueFactory(new PropertyValueFactory<>("coordinates"));
+
+        TableColumn<Person, Location> locCol = new TableColumn<>("Location");
+        locCol.setCellValueFactory(new PropertyValueFactory<>("location"));
+
+        tableView.getColumns().addAll(
+                idCol,
+                ownerCol,
+                nameCol,
+                heightCol,
+                hairCol,
+                natCol,
+                coordsCol,
+                locCol
+        );
     }
 
     private void saveToFile() {
@@ -314,7 +357,7 @@ public class MainUI extends Application {
         }
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Delete " + selected.getName() + "?", ButtonType.YES, ButtonType.NO);
         if (confirm.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
-            boolean success = collectionManager.removeByID(selected.getId(), currentUser.getId());
+            boolean success = collectionManager.removeById(selected.getId(), currentUser.getId());
 
             if (!success) {
                 showAlert("Access denied", "Вы не можете удалять чужой объект");

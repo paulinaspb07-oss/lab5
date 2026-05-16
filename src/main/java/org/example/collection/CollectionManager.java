@@ -68,7 +68,7 @@ public class CollectionManager {
         else System.out.println("Element not found.");
     }
 
-    public boolean removeByID(int id, int userID) {
+    public boolean removeById(int id, int userID) {
         if (!canModify(id, userID)) {
             return false;
         }
