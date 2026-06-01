@@ -6,7 +6,7 @@ import javax.xml.parsers.*;
 import javax.xml.transform.*;
 import org.example.commands.*;
 import org.example.storage.XmlFileStorage;
-
+import org.example.auth.Session;
 import org.example.collection.CollectionManager;
 import org.example.model.*;
 import org.w3c.dom.*;
@@ -98,21 +98,48 @@ public class Main {
         saveCollectionToFile();
     }
 
-    public static void interactiveMode() {
-        try (BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in, "UTF-8"))) {
-            System.out.println("Enter 'help' for list of commands.");
-            while (true) {
-                System.out.print("> ");
-                String line = consoleReader.readLine();
-                if (line == null) break;
-                line = line.trim();
-                if (line.isEmpty()) continue;
-                processCommand(line, consoleReader);
+   public static void interactiveMode() {
+    try (BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in, "UTF-8"))) {
+        // Force login/register before any command
+        System.out.println("Welcome to the Collection Manager.");
+        while (Session.getCurrentUser() == null) {
+            System.out.print("Type 'login' or 'register': ");
+            String line = consoleReader.readLine();
+            if (line == null) break;
+            line = line.trim().toLowerCase();
+            switch (line) {
+                case "login":
+                    try {
+                        new LoginCommand().execute(new String[]{}, consoleReader);
+                    } catch (Exception e) {
+                        System.out.println("Login error: " + e.getMessage());
+                    }
+                    break;
+                case "register":
+                    try {
+                        new RegisterCommand().execute(new String[]{}, consoleReader);
+                    } catch (Exception e) {
+                        System.out.println("Registration error: " + e.getMessage());
+                    }
+                    break;
+                default:
+                    System.out.println("Unknown. Please type 'login' or 'register'.");
             }
-        } catch (IOException e) {
-            System.err.println("Input error: " + e.getMessage());
         }
+        System.out.println("Logged in as: " + Session.getCurrentUser().getLogin());
+        System.out.println("Enter 'help' for list of commands.");
+        while (true) {
+            System.out.print("> ");
+            String line = consoleReader.readLine();
+            if (line == null) break;
+            line = line.trim();
+            if (line.isEmpty()) continue;
+            processCommand(line, consoleReader);
+        }
+    } catch (IOException e) {
+        System.err.println("Input error: " + e.getMessage());
     }
+}
 
     public static void processCommand(String command, BufferedReader input) {
         String[] parts = command.split("\\s+", 2);
