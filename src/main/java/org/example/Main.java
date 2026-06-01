@@ -40,6 +40,9 @@ public class Main {
         COMMANDS.put("print_ascending", new PrintAscendingCommand());
         COMMANDS.put("print_descending", new PrintDescendingCommand());
         COMMANDS.put("load", new LoadCommand());
+        COMMANDS.put("register", new RegisterCommand());
+        COMMANDS.put("login", new LoginCommand());
+        COMMANDS.put("logout", new LogoutCommand());
     }
 
 
