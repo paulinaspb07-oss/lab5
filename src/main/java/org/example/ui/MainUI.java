@@ -114,6 +114,15 @@ public class MainUI extends Application {
 
         HBox buttonBar = new HBox(10, addBtn, editBtn, deleteBtn, refreshBtn, saveBtn);
         buttonBar.setPadding(new Insets(10));
+        HBox extraButtonBar = new HBox(10,
+             new Button("Clear All"),       // clear all
+             new Button("Remove My"),       // clear MY, JUST Mine
+             new Button("Remove Greater"),  
+             new Button("Remove Lower"),    
+             new Button("Filter by Prefix"),
+             new Button("Info")             
+);
+extraButtonBar.setPadding(new Insets(10));
 
         VBox topPanel = new VBox(5, userLabel, buttonBar);
 
