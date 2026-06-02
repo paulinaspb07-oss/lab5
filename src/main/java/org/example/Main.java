@@ -98,35 +98,51 @@ public class Main {
         saveCollectionToFile();
     }
 
-   public static void interactiveMode() {
+ public static void interactiveMode() {
     try (BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in, "UTF-8"))) {
-        // Force login/register before any command
         System.out.println("Welcome to the Collection Manager.");
-        while (Session.getCurrentUser() == null) {
-            System.out.print("Type 'login' or 'register': ");
-            String line = consoleReader.readLine();
-            if (line == null) break;
-            line = line.trim().toLowerCase();
-            switch (line) {
-                case "login":
+        
+     
+        boolean authenticated = false;
+        while (!authenticated) {
+            System.out.print("Do you want to (1) Login, (2) Register, or (3) Continue as Guest? (1/2/3): ");
+            String choice = consoleReader.readLine();
+            if (choice == null) break;
+            choice = choice.trim();
+            
+            switch (choice) {
+                case "1":
                     try {
                         new LoginCommand().execute(new String[]{}, consoleReader);
+                        if (Session.getCurrentUser() != null) {
+                            authenticated = true;
+                            System.out.println("Logged in as: " + Session.getCurrentUser().getLogin());
+                        }
                     } catch (Exception e) {
                         System.out.println("Login error: " + e.getMessage());
                     }
                     break;
-                case "register":
+                case "2":
                     try {
                         new RegisterCommand().execute(new String[]{}, consoleReader);
+                        if (Session.getCurrentUser() != null) {
+                            authenticated = true;
+                            System.out.println("Registered and logged in as: " + Session.getCurrentUser().getLogin());
+                        }
                     } catch (Exception e) {
                         System.out.println("Registration error: " + e.getMessage());
                     }
                     break;
+                case "3":
+                    authenticated = true;
+                    System.out.println("Continuing as guest. You can only view data. Use 'login' or 'register' later if needed.");
+                    break;
                 default:
-                    System.out.println("Unknown. Please type 'login' or 'register'.");
+                    System.out.println("Invalid choice. Please enter 1, 2, or 3.");
             }
         }
-        System.out.println("Logged in as: " + Session.getCurrentUser().getLogin());
+        
+
         System.out.println("Enter 'help' for list of commands.");
         while (true) {
             System.out.print("> ");
