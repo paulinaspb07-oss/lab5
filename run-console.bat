@@ -1,3 +1,3 @@
 @echo off
-mvn exec:java -Dexec.mainClass=org.example.Main
+java -cp "target/classes" org.example.Main
 pause

@@ -36,4 +36,22 @@
             <z>1</z>
         </location>
     </person>
+    <person>
+        <id>3</id>
+        <ownerID>4</ownerID>
+        <name>Ohyeah</name>
+        <coordinates>
+            <x>1</x>
+            <y>1.0</y>
+        </coordinates>
+        <creationDate>1780381732200</creationDate>
+        <height>1.0</height>
+        <hairColor>GREEN</hairColor>
+        <nationality>RUSSIA</nationality>
+        <location>
+            <x>1.0</x>
+            <y>1.0</y>
+            <z>1</z>
+        </location>
+    </person>
 </persons>
