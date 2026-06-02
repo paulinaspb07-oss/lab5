@@ -1,150 +1,130 @@
 package org.example.collection;
 
 import org.example.model.Person;
-import org.example.storage.DbStorage;
-import java.sql.SQLException;
 import java.util.*;
 
 public class CollectionManager {
-    private final Map<Integer, Person> collection = new HashMap<>();
-    private final DbStorage dbStorage;
+    private static final Map<Integer, Person> collection = new HashMap<>();
     private static final Date initDate = new Date();
 
-    public CollectionManager(DbStorage dbStorage) {
-        this.dbStorage = dbStorage;
-        loadFromDatabase();
-    }
-
-    private void loadFromDatabase() {
-        try {
-            List<Person> persons = dbStorage.loadAllPersons();
-            for (Person p : persons) {
-                collection.put(p.getId(), p);
-                Person.updateNextId(p.getId());
-            }
-            System.out.println("Loaded " + persons.size() + " persons.");
-        } catch (SQLException e) {
-            System.err.println("DB load error: " + e.getMessage());
-        }
-    }
-
     public String getInfo() {
-        return "Type: HashMap<Person>\nInit date: " + initDate + "\nSize: " + collection.size();
+        return "Type: HashMap<Person>\nInitialization date: " + initDate + "\nNumber of elements: " + collection.size();
     }
 
     public void show() {
-        if (collection.isEmpty()) System.out.println("Empty.");
-        else collection.values().forEach(System.out::println);
+        if (collection.isEmpty()) {
+            System.out.println("Collection is empty.");
+            return;
+        }
+        collection.values().forEach(System.out::println);
     }
 
-    public void addPerson(Person p, int ownerId) {
-        try {
-            dbStorage.insertPerson(p, ownerId);
-            p.setOwnerID(ownerId);
-            collection.put(p.getId(), p);
-        } catch (SQLException e) {
-            System.err.println("DB insert error: " + e.getMessage());
+    public void addPerson(Person p) {
+        if (p.getId() == 0) {
+            p.generateId();
+        } else {
+            Person.updateNextId(p.getId());
         }
+        collection.put(p.getId(), p);
+    }
+
+    public void addPerson(Person p, int ownerID) {
+        p.setOwnerID(ownerID);
+        addPerson(p);
     }
 
     public Person getPersonById(int id) {
         return collection.get(id);
     }
 
-    public boolean updatePerson(int id, Person newPerson, int userId) {
-        if (!canModify(id, userId)) return false;
-        Person old = collection.get(id);
-        newPerson.setId(id);
-        newPerson.setOwnerID(old.getOwnerID());
-        newPerson.setCreationDate(old.getCreationDate());
-        try {
-            dbStorage.updatePerson(newPerson);
+    public void updatePerson(int id, Person newPerson) {
+        if (collection.containsKey(id)) {
+            newPerson.setId(id);
             collection.put(id, newPerson);
-            return true;
-        } catch (SQLException e) {
-            System.err.println("DB update error: " + e.getMessage());
+        }
+    }
+
+    public boolean updatePerson(int id, Person newPerson, int userID) {
+        if (!canModify(id, userID)) {
             return false;
         }
+        Person oldPerson = collection.get(id);
+        newPerson.setId(id);
+        newPerson.setOwnerID(oldPerson.getOwnerID());
+        newPerson.setCreationDate(oldPerson.getCreationDate());
+        collection.put(id, newPerson);
+        return true;
     }
 
-    public boolean canModify(int id, int userId) {
+    public boolean canModify(int id, int userID) {
         Person p = collection.get(id);
-        return p != null && p.getOwnerID() == userId;
+        return p != null && p.getOwnerID() == userID;
     }
 
-    public boolean removeById(int id, int userId) {
-        if (!canModify(id, userId)) return false;
-        try {
-            if (dbStorage.deletePerson(id, userId)) {
-                collection.remove(id);
-                return true;
-            }
-        } catch (SQLException e) {
-            System.err.println("DB delete error: " + e.getMessage());
-        }
-        return false;
+    public void removeById(int id) {
+        if (collection.remove(id) != null) System.out.println("Element removed.");
+        else System.out.println("Element not found.");
     }
 
-    public int clearByOwner(int userId) {
+    public boolean removeById(int id, int userID) {
+        if (!canModify(id, userID)) return false;
+        collection.remove(id);
+        return true;
+    }
+
+    public void clear() {
+        collection.clear();
+        System.out.println("Collection cleared.");
+    }
+
+    public int clearByOwner(int userID) {
         List<Integer> toRemove = new ArrayList<>();
-        for (Person p : collection.values())
-            if (p.getOwnerID() == userId) toRemove.add(p.getId());
-        try {
-            dbStorage.clearByOwner(userId);
-            toRemove.forEach(collection::remove);
-            return toRemove.size();
-        } catch (SQLException e) {
-            System.err.println("DB clear error: " + e.getMessage());
-            return 0;
+        for (Person p : collection.values()) {
+            if (p.getOwnerID() == userID) {
+                toRemove.add(p.getId());
+            }
         }
+        for (Integer id : toRemove) {
+            collection.remove(id);
+        }
+        return toRemove.size();
     }
 
     public Collection<Person> getAllPersons() {
         return collection.values();
     }
 
-    // Métodos de comparación (trabajan sobre la colección en memoria)
-    public boolean isLessThanMin(Person p) {
-        return collection.values().stream().min(Person::compareTo)
-                .map(min -> p.compareTo(min) < 0).orElse(true);
+    public static boolean isLessThanMin(Person p) {
+        return collection.values().stream().min(Person::compareTo).map(min -> p.compareTo(min) < 0).orElse(true);
     }
 
-    public int removeGreater(Person reference, int userId) {
+    public int removeGreater(Person p) {
         List<Integer> toRemove = new ArrayList<>();
-        for (Person p : collection.values())
-            if (p.getOwnerID() == userId && p.compareTo(reference) > 0)
-                toRemove.add(p.getId());
-        for (int id : toRemove) {
-            try {
-                dbStorage.deletePerson(id, userId);
-                collection.remove(id);
-            } catch (SQLException e) { /* ignore */ }
+        for (Person person : collection.values()) {
+            if (person.compareTo(p) > 0) toRemove.add(person.getId());
         }
+        toRemove.forEach(collection::remove);
         return toRemove.size();
     }
 
-    public int removeLower(Person reference, int userId) {
+    public int removeLower(Person p) {
         List<Integer> toRemove = new ArrayList<>();
-        for (Person p : collection.values())
-            if (p.getOwnerID() == userId && p.compareTo(reference) < 0)
-                toRemove.add(p.getId());
-        for (int id : toRemove) {
-            try {
-                dbStorage.deletePerson(id, userId);
-                collection.remove(id);
-            } catch (SQLException e) { /* ignore */ }
+        for (Person person : collection.values()) {
+            if (person.compareTo(p) < 0) toRemove.add(person.getId());
         }
+        toRemove.forEach(collection::remove);
         return toRemove.size();
     }
 
     public void filterStartsWithName(String prefix) {
         boolean found = false;
-        for (Person p : collection.values())
+        for (Person p : collection.values()) {
             if (p.getName().startsWith(prefix)) {
                 System.out.println(p);
                 found = true;
             }
-        if (!found) System.out.println("No matches.");
+        }
+        if (!found) System.out.println("No elements found.");
     }
 
     public void printAscending() {
