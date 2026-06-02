@@ -82,6 +82,14 @@ public class Main {
         }
     }
 
+    // Overloaded method to support LoadCommand with argument
+    public static void loadCollectionFromFile(String newFileName) {
+        if (newFileName != null && !newFileName.trim().isEmpty()) {
+            fileName = newFileName.trim();
+        }
+        loadCollectionFromFile();
+    }
+
     public static void saveCollectionToFile() {
         try {
             fileStorage.save(fileName, collectionManager.getAllPersons());
@@ -89,6 +97,14 @@ public class Main {
         } catch (Exception e) {
             System.err.println("Error saving collection: " + e.getMessage());
         }
+    }
+
+    // Overloaded method to support SaveCommand with argument
+    public static void saveCollectionToFile(String newFileName) {
+        if (newFileName != null && !newFileName.trim().isEmpty()) {
+            fileName = newFileName.trim();
+        }
+        saveCollectionToFile();
     }
 
     public static void interactiveMode() {
