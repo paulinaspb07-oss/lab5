@@ -14,10 +14,11 @@ import javafx.stage.Stage;
 import org.example.collection.CollectionManager;
 import org.example.model.*;
 import org.example.auth.User;
-import org.example.auth.UserFileStorage;
-import org.example.storage.XmlFileStorage;
+import org.example.storage.DbStorage;
+import org.example.storage.DbUserStorage;
+import org.example.utils.DbConfig;
 
-import java.io.*;
+import java.sql.SQLException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,20 +27,14 @@ public class MainUI extends Application {
 
     private TableView<Person> tableView = new TableView<>();
     private ObservableList<Person> personList = FXCollections.observableArrayList();
-    private CollectionManager collectionManager = new CollectionManager();
-    private String fileName;
-    private XmlFileStorage fileStorage = new XmlFileStorage();
-    private UserFileStorage userFileStorage = new UserFileStorage("users.csv");
+    private CollectionManager collectionManager;
+    private DbUserStorage userStorage = new DbUserStorage();
     private User currentUser;
     private Button editBtn;
     private Button deleteBtn;
 
     @Override
     public void start(Stage primaryStage) {
-        fileName = System.getenv("FILE_NAME");
-        if (fileName == null || fileName.trim().isEmpty()) {
-            fileName = "data.xml";
-        }
         showLoginWindow(primaryStage);
     }
 
@@ -51,18 +46,22 @@ public class MainUI extends Application {
         Button registerBtn = new Button("Register");
 
         loginBtn.setOnAction(e -> {
-            User user = userFileStorage.login(loginField.getText(), passwordField.getText());
-            if (user == null) {
-                showAlert("Error", "Invalid login or password");
-                return;
+            try {
+                User user = userStorage.login(loginField.getText(), passwordField.getText());
+                if (user == null) {
+                    showAlert("Error", "Invalid login or password");
+                    return;
+                }
+                currentUser = user;
+                openMainWindow(stage);
+            } catch (SQLException ex) {
+                showAlert("Database error", ex.getMessage());
             }
-            currentUser = user;
-            openMainWindow(stage);
         });
 
         registerBtn.setOnAction(e -> {
             try {
-                currentUser = userFileStorage.register(loginField.getText(), passwordField.getText());
+                currentUser = userStorage.register(loginField.getText(), passwordField.getText());
                 showAlert("Registration", "User created: " + currentUser.getLogin());
                 openMainWindow(stage);
             } catch (Exception ex) {
@@ -83,20 +82,20 @@ public class MainUI extends Application {
     }
 
     private void openMainWindow(Stage primaryStage) {
-        loadDataFromFile();
+        // Initialize database storage for persons
+        DbStorage dbStorage = new DbStorage(DbConfig.getUrl(), DbConfig.getUser(), DbConfig.getPassword());
+        collectionManager = new CollectionManager(dbStorage);
+
         buildTableColumns();
         refreshTable();
 
         Button addBtn = new Button("Add");
         editBtn = new Button("Edit");
         deleteBtn = new Button("Delete");
-        Button refreshBtn = new Button("Refresh");
-        Button saveBtn = new Button("Save");
 
         editBtn.setDisable(true);
         deleteBtn.setDisable(true);
 
-        // Additional buttons
         Button clearAllBtn = new Button("Clear All");
         Button removeMyBtn = new Button("Remove My");
         Button removeGreaterBtn = new Button("Remove Greater");
@@ -109,8 +108,6 @@ public class MainUI extends Application {
         addBtn.setOnAction(e -> showAddDialog());
         editBtn.setOnAction(e -> showEditDialog());
         deleteBtn.setOnAction(e -> deleteSelected());
-        refreshBtn.setOnAction(e -> refreshFromFile());
-        saveBtn.setOnAction(e -> saveToFile());
 
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, selected) -> {
             boolean canEdit = selected != null && selected.getOwnerID() == currentUser.getId();
@@ -133,9 +130,9 @@ public class MainUI extends Application {
             adminStage.setScene(new Scene(adminRoot, 300, 200));
             loginBtn.setOnAction(ev -> {
                 if ("admin".equals(userField.getText()) && "admin123".equals(passField.getText())) {
-                    collectionManager.clear();
+                    collectionManager.clearByOwner(currentUser.getId());
                     refreshTable();
-                    showAlert("Cleared", "Collection cleared by admin.");
+                    showAlert("Cleared", "All your objects cleared.");
                     adminStage.close();
                 } else {
                     showAlert("Authentication Failed", "Invalid admin credentials.");
@@ -192,7 +189,7 @@ public class MainUI extends Application {
                 return null;
             });
             dialog.showAndWait().ifPresent(reference -> {
-                int count = collectionManager.removeGreater(reference);
+                int count = collectionManager.removeGreater(reference, currentUser.getId());
                 refreshTable();
                 showAlert("Removed Greater", count + " element(s) removed.");
             });
@@ -234,7 +231,7 @@ public class MainUI extends Application {
                 return null;
             });
             dialog.showAndWait().ifPresent(reference -> {
-                int count = collectionManager.removeLower(reference);
+                int count = collectionManager.removeLower(reference, currentUser.getId());
                 refreshTable();
                 showAlert("Removed Lower", count + " element(s) removed.");
             });
@@ -272,7 +269,7 @@ public class MainUI extends Application {
 
         Label userLabel = new Label("Current user: " + currentUser.getLogin() + " | id = " + currentUser.getId());
 
-        HBox buttonBar = new HBox(10, addBtn, editBtn, deleteBtn, refreshBtn, saveBtn);
+        HBox buttonBar = new HBox(10, addBtn, editBtn, deleteBtn);
         buttonBar.setPadding(new Insets(10));
         HBox extraButtonBar = new HBox(10, clearAllBtn, removeMyBtn, removeGreaterBtn, removeLowerBtn, filterBtn, infoBtn);
         extraButtonBar.setPadding(new Insets(10));
@@ -290,59 +287,35 @@ public class MainUI extends Application {
         primaryStage.show();
     }
 
-    private void loadDataFromFile() {
-        File file = new File(fileName);
-        if (!file.exists()) {
-            System.out.println("File not found. Starting with empty collection.");
-            collectionManager.clear();
-            refreshTable();
-            return;
-        }
-        try {
-            List<Person> persons = fileStorage.load(fileName);
-            collectionManager.clear();
-            for (Person p : persons) {
-                collectionManager.addPerson(p);
-            }
-            refreshTable();
-        } catch (Exception e) {
-            showAlert("Load Error", "Could not load from file: " + e.getMessage());
-        }
-    }
-
     private void buildTableColumns() {
         tableView.getColumns().clear();
         tableView.setItems(personList);
+
         TableColumn<Person, Integer> idCol = new TableColumn<>("ID");
         idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+
         TableColumn<Person, Integer> ownerCol = new TableColumn<>("Owner ID");
         ownerCol.setCellValueFactory(new PropertyValueFactory<>("ownerID"));
+
         TableColumn<Person, String> nameCol = new TableColumn<>("Name");
         nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+
         TableColumn<Person, Float> heightCol = new TableColumn<>("Height");
         heightCol.setCellValueFactory(new PropertyValueFactory<>("height"));
+
         TableColumn<Person, Color> hairCol = new TableColumn<>("Hair Color");
         hairCol.setCellValueFactory(new PropertyValueFactory<>("hairColor"));
+
         TableColumn<Person, Country> natCol = new TableColumn<>("Nationality");
         natCol.setCellValueFactory(new PropertyValueFactory<>("nationality"));
+
         TableColumn<Person, Coordinates> coordsCol = new TableColumn<>("Coordinates");
         coordsCol.setCellValueFactory(new PropertyValueFactory<>("coordinates"));
+
         TableColumn<Person, Location> locCol = new TableColumn<>("Location");
         locCol.setCellValueFactory(new PropertyValueFactory<>("location"));
+
         tableView.getColumns().addAll(idCol, ownerCol, nameCol, heightCol, hairCol, natCol, coordsCol, locCol);
-    }
-
-    private void saveToFile() {
-        try {
-            fileStorage.save(fileName, collectionManager.getAllPersons());
-            showAlert("Saved", "Data saved to " + fileName);
-        } catch (Exception e) {
-            showAlert("Save Error", "Failed to save: " + e.getMessage());
-        }
-    }
-
-    private void refreshFromFile() {
-        loadDataFromFile();
     }
 
     private void refreshTable() {
@@ -409,12 +382,8 @@ public class MainUI extends Application {
         });
 
         dialog.showAndWait().ifPresent(person -> {
-            try {
-                collectionManager.addPerson(person, currentUser.getId());
-                refreshTable();
-            } catch (IllegalArgumentException e) {
-                showAlert("Validation Error", e.getMessage());
-            }
+            collectionManager.addPerson(person, currentUser.getId());
+            refreshTable();
         });
     }
 
@@ -472,16 +441,12 @@ public class MainUI extends Application {
         });
 
         dialog.showAndWait().ifPresent(updated -> {
-            try {
-                boolean success = collectionManager.updatePerson(selected.getId(), updated, currentUser.getId());
-                if (!success) {
-                    showAlert("Access denied", "You cannot edit another user's object.");
-                    return;
-                }
-                refreshTable();
-            } catch (IllegalArgumentException e) {
-                showAlert("Validation Error", e.getMessage());
+            boolean success = collectionManager.updatePerson(selected.getId(), updated, currentUser.getId());
+            if (!success) {
+                showAlert("Access denied", "You cannot edit another user's object.");
+                return;
             }
+            refreshTable();
         });
     }
 

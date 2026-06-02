@@ -54,4 +54,22 @@
             <z>1</z>
         </location>
     </person>
+    <person>
+        <id>4</id>
+        <ownerID>6</ownerID>
+        <name>ttt</name>
+        <coordinates>
+            <x>1</x>
+            <y>1.0</y>
+        </coordinates>
+        <creationDate>1780397111806</creationDate>
+        <height>1.0</height>
+        <hairColor>YELLOW</hairColor>
+        <nationality>RUSSIA</nationality>
+        <location>
+            <x>1.0</x>
+            <y>1.0</y>
+            <z>1</z>
+        </location>
+    </person>
 </persons>
