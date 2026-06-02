@@ -20,6 +20,11 @@
             <artifactId>javafx-controls</artifactId>
             <version>21</version>
         </dependency>
+        <dependency>
+    <groupId>org.postgresql</groupId>
+    <artifactId>postgresql</artifactId>
+    <version>42.7.1</version>
+</dependency>
     </dependencies>
 
     <build>
@@ -40,6 +45,21 @@
                     <mainClass>org.example.ui.MainUI</mainClass>
                 </configuration>
             </plugin>
+            <plugin>
+    <groupId>org.codehaus.mojo</groupId>
+    <artifactId>exec-maven-plugin</artifactId>
+    <version>3.6.3</version>
+    <executions>
+        <execution>
+            <goals>
+                <goal>java</goal>
+            </goals>
+        </execution>
+    </executions>
+    <configuration>
+        <mainClass>org.example.ui.MainUI</mainClass>
+    </configuration>
+</plugin>
         </plugins>
     </build>
 </project>

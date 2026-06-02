@@ -6,22 +6,32 @@ import org.example.utils.DbConfig;
 import java.sql.*;
 
 public class DbUserStorage {
-    private final String url, user, password;
+    private final String url;
+    private final String user;
+    private final String password;
+
     public DbUserStorage() {
         this.url = DbConfig.getUrl();
         this.user = DbConfig.getUser();
         this.password = DbConfig.getPassword();
     }
+
     public User register(String login, String password) throws SQLException {
         login = login.trim();
-        if (login.isEmpty() || password.isEmpty()) throw new IllegalArgumentException("Empty login/password");
-        // check existence
+        if (login.isEmpty() || password.isEmpty()) {
+            throw new IllegalArgumentException("Login and password cannot be empty");
+        }
+        // Check if user already exists
         String checkSql = "SELECT id FROM users WHERE login = ?";
         try (Connection conn = DriverManager.getConnection(url, this.user, this.password);
              PreparedStatement ps = conn.prepareStatement(checkSql)) {
             ps.setString(1, login);
-            if (ps.executeQuery().next()) throw new IllegalArgumentException("Login already taken");
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                throw new IllegalArgumentException("Login already taken");
+            }
         }
+        // Insert new user
         String insertSql = "INSERT INTO users (login, password_hash) VALUES (?, ?) RETURNING id";
         String hash = PasswordUtil.hash(password);
         try (Connection conn = DriverManager.getConnection(url, this.user, this.password);
@@ -29,10 +39,14 @@ public class DbUserStorage {
             ps.setString(1, login);
             ps.setString(2, hash);
             ResultSet rs = ps.executeQuery();
-            if (rs.next()) return new User(rs.getInt(1), login, hash);
-            throw new SQLException("Registration failed");
+            if (rs.next()) {
+                int id = rs.getInt(1);
+                return new User(id, login, hash);
+            }
+            throw new SQLException("Failed to create user");
         }
     }
+
     public User login(String login, String password) throws SQLException {
         String sql = "SELECT id, login, password_hash FROM users WHERE login = ?";
         try (Connection conn = DriverManager.getConnection(url, this.user, this.password);
@@ -40,9 +54,9 @@ public class DbUserStorage {
             ps.setString(1, login.trim());
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
-                String hash = rs.getString("password_hash");
-                if (hash.equals(PasswordUtil.hash(password))) {
-                    return new User(rs.getInt("id"), rs.getString("login"), hash);
+                String storedHash = rs.getString("password_hash");
+                if (storedHash.equals(PasswordUtil.hash(password))) {
+                    return new User(rs.getInt("id"), rs.getString("login"), storedHash);
                 }
             }
             return null;
