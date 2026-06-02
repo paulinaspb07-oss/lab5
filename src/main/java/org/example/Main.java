@@ -9,7 +9,6 @@ import org.example.storage.DbUserStorage;
 import org.example.utils.DbConfig;
 
 import java.io.*;
-import java.sql.SQLException;
 import java.util.*;
 
 public class Main {
@@ -18,10 +17,10 @@ public class Main {
     public static int scriptDepth = 0;
 
     private static final Map<String, Command> COMMANDS = new HashMap<>();
-    private static DbUserStorage userStorage = new DbUserStorage();  // PostgreSQL users
+    private static DbUserStorage userStorage = new DbUserStorage();
 
     static {
-        // Read-only commands (no authentication needed)
+        // Read-only commands
         COMMANDS.put("help", new HelpCommand());
         COMMANDS.put("info", new InfoCommand());
         COMMANDS.put("show", new ShowCommand());
@@ -29,7 +28,7 @@ public class Main {
         COMMANDS.put("print_descending", new PrintDescendingCommand());
         COMMANDS.put("filter_starts_with_name", new FilterStartsWithNameCommand());
 
-        // Modifying commands (require authentication)
+        // Modifying commands
         COMMANDS.put("add", new AddCommand());
         COMMANDS.put("update", new UpdateCommand());
         COMMANDS.put("remove_by_id", new RemoveByIDCommand());
@@ -38,25 +37,33 @@ public class Main {
         COMMANDS.put("remove_greater", new RemoveGreaterCommand());
         COMMANDS.put("remove_lower", new RemoveLowerCommand());
 
-        // Authentication commands
+        // Auth commands
         COMMANDS.put("register", new RegisterCommand());
         COMMANDS.put("login", new LoginCommand());
         COMMANDS.put("logout", new LogoutCommand());
 
-        // Utility commands
+        // Utility
         COMMANDS.put("execute_script", new ExecuteScriptCommand());
         COMMANDS.put("exit", new ExitCommand());
-        // "save" and "load" are removed (DB auto-persists)
     }
 
     public static void main(String[] args) {
-        // Initialize database storage for persons
+        // Explicitly load PostgreSQL driver
+        try {
+            Class.forName("org.postgresql.Driver");
+            System.out.println("PostgreSQL JDBC driver loaded successfully.");
+        } catch (ClassNotFoundException e) {
+            System.err.println("ERROR: PostgreSQL JDBC driver not found. " + e.getMessage());
+        }
+
         String url = DbConfig.getUrl();
         String dbUser = DbConfig.getUser();
         String dbPassword = DbConfig.getPassword();
+        System.out.println("Connecting to DB: " + url + " user: " + dbUser);
+        
         DbStorage dbStorage = new DbStorage(url, dbUser, dbPassword);
         collectionManager = new CollectionManager(dbStorage);
-
+        
         interactiveMode();
     }
 
@@ -64,7 +71,6 @@ public class Main {
         try (BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in, "UTF-8"))) {
             System.out.println("Welcome to the Collection Manager (PostgreSQL version).");
             System.out.println("Type 'login' or 'register' to start, or 'help' for commands.");
-
             while (true) {
                 System.out.print("> ");
                 String line = consoleReader.readLine();
@@ -87,18 +93,19 @@ public class Main {
                 commandObj.execute(parts, input);
             } catch (Exception e) {
                 System.err.println("Error: " + e.getMessage());
+                e.printStackTrace();
             }
         } else {
             System.out.println("Unknown command. Type 'help' for list.");
         }
     }
 
-    // Helper methods for authentication commands (they will use userStorage)
+    // Helper methods for auth commands
     public static User login(String login, String password) {
         try {
             return userStorage.login(login, password);
-        } catch (SQLException e) {
-            System.err.println("Database error during login: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Login error: " + e.getMessage());
             return null;
         }
     }
