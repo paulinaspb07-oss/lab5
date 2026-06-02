@@ -1,4 +1,3 @@
-//mvn javafx:run
 package org.example.ui;
 
 import javafx.application.Application;
@@ -14,11 +13,12 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.example.collection.CollectionManager;
 import org.example.model.*;
-import org.example.storage.XmlFileStorage;
 import org.example.auth.User;
-import org.example.auth.UserFileStorage;
+import org.example.storage.DbStorage;
+import org.example.storage.DbUserStorage;
+import org.example.utils.DbConfig;
 
-import java.io.*;
+import java.sql.SQLException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,21 +27,14 @@ public class MainUI extends Application {
 
     private TableView<Person> tableView = new TableView<>();
     private ObservableList<Person> personList = FXCollections.observableArrayList();
-    private CollectionManager collectionManager = new CollectionManager();
-    private String fileName;
-    private XmlFileStorage fileStorage = new XmlFileStorage();
-    private UserFileStorage userFileStorage = new UserFileStorage("users.csv");
+    private CollectionManager collectionManager;
+    private DbUserStorage userStorage = new DbUserStorage();  // PostgreSQL users
     private User currentUser;
     private Button editBtn;
     private Button deleteBtn;
 
     @Override
     public void start(Stage primaryStage) {
-        fileName = System.getenv("FILE_NAME");
-        if (fileName == null || fileName.trim().isEmpty()) {
-            fileName = "data.xml";
-        }
-
         showLoginWindow(primaryStage);
     }
 
@@ -53,55 +46,60 @@ public class MainUI extends Application {
         Button registerBtn = new Button("Register");
 
         loginBtn.setOnAction(e -> {
-            User user = userFileStorage.login(loginField.getText(), passwordField.getText());
-
-            if (user == null) {
-                showAlert("Ошибка входа", "Неверный логин или пароль");
-                return;
+            try {
+                User user = userStorage.login(loginField.getText(), passwordField.getText());
+                if (user == null) {
+                    showAlert("Error", "Invalid login or password");
+                    return;
+                }
+                currentUser = user;
+                openMainWindow(stage);
+            } catch (SQLException ex) {
+                showAlert("Database error", ex.getMessage());
             }
-
-            currentUser = user;
-            openMainWindow(stage);
         });
 
         registerBtn.setOnAction(e -> {
             try {
-                currentUser = userFileStorage.register(loginField.getText(), passwordField.getText());
-                showAlert("Регистрация", "Пользователь создан: ");
+                currentUser = userStorage.register(loginField.getText(), passwordField.getText());
+                showAlert("Registration", "User created: " + currentUser.getLogin());
                 openMainWindow(stage);
             } catch (Exception ex) {
-                showAlert("Ошибка регистрации", ex.getMessage());
+                showAlert("Registration error", ex.getMessage());
             }
         });
 
         VBox root = new VBox(10,
-                new Label("Логин:"), loginField,
-                new Label("Пароль"), passwordField,
+                new Label("Login:"), loginField,
+                new Label("Password:"), passwordField,
                 new HBox(10, loginBtn, registerBtn)
         );
-
         root.setPadding(new Insets(20));
 
-        stage.setTitle("Авторизация");
+        stage.setTitle("Authorization");
         stage.setScene(new Scene(root, 300, 200));
         stage.show();
     }
 
     private void openMainWindow(Stage primaryStage) {
-        loadDataFromFile();
-        buildTableColumns();
+        // Initialize database storage
+        String url = DbConfig.getUrl();
+        String user = DbConfig.getUser();
+        String password = DbConfig.getPassword();
+        DbStorage dbStorage = new DbStorage(url, user, password);
+        collectionManager = new CollectionManager(dbStorage);
 
-     
+        buildTableColumns();
+        refreshTable();
+
         Button addBtn = new Button("Add");
         editBtn = new Button("Edit");
         deleteBtn = new Button("Delete");
         Button refreshBtn = new Button("Refresh");
-        Button saveBtn = new Button("Save");
 
         editBtn.setDisable(true);
         deleteBtn.setDisable(true);
 
-        // Neeeew
         Button clearAllBtn = new Button("Clear All");
         Button removeMyBtn = new Button("Remove My");
         Button removeGreaterBtn = new Button("Remove Greater");
@@ -111,12 +109,10 @@ public class MainUI extends Application {
         Button sortAscBtn = new Button("Sort ↑");
         Button sortDescBtn = new Button("Sort ↓");
 
-  
         addBtn.setOnAction(e -> showAddDialog());
         editBtn.setOnAction(e -> showEditDialog());
         deleteBtn.setOnAction(e -> deleteSelected());
-        refreshBtn.setOnAction(e -> refreshFromFile());
-        saveBtn.setOnAction(e -> saveToFile());
+        refreshBtn.setOnAction(e -> refreshTable());
 
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, selected) -> {
             boolean canEdit = selected != null && selected.getOwnerID() == currentUser.getId();
@@ -124,40 +120,33 @@ public class MainUI extends Application {
             deleteBtn.setDisable(!canEdit);
         });
 
-
         clearAllBtn.setOnAction(e -> {
             Stage adminStage = new Stage();
             adminStage.setTitle("Admin Authentication");
-
             Label userLabel = new Label("Username:");
             TextField userField = new TextField();
             Label passLabel = new Label("Password:");
             PasswordField passField = new PasswordField();
             Button loginBtn = new Button("Login");
             Button cancelBtn = new Button("Cancel");
-
             VBox adminRoot = new VBox(10, userLabel, userField, passLabel, passField,
                     new HBox(10, loginBtn, cancelBtn));
             adminRoot.setPadding(new Insets(20));
-
             adminStage.setScene(new Scene(adminRoot, 300, 200));
-
             loginBtn.setOnAction(ev -> {
                 if ("admin".equals(userField.getText()) && "admin123".equals(passField.getText())) {
-                    collectionManager.clear();
+                    collectionManager.clearByOwner(currentUser.getId());
                     refreshTable();
-                    showAlert("Cleared", "Collection cleared by admin.");
+                    showAlert("Cleared", "All your objects cleared.");
                     adminStage.close();
                 } else {
                     showAlert("Authentication Failed", "Invalid admin credentials.");
                 }
             });
-
             cancelBtn.setOnAction(ev -> adminStage.close());
             adminStage.show();
         });
 
-     
         removeMyBtn.setOnAction(e -> {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
                     "Remove all your own elements?", ButtonType.YES, ButtonType.NO);
@@ -169,17 +158,14 @@ public class MainUI extends Application {
             }
         });
 
-     
         removeGreaterBtn.setOnAction(e -> {
             Dialog<Person> dialog = new Dialog<>();
             dialog.setTitle("Remove Greater");
-            dialog.setHeaderText("Enter fields for comparison (all fields used in compareTo)");
-
+            dialog.setHeaderText("Enter fields for comparison (all your greater objects will be removed)");
             TextField nameField = new TextField();
             TextField heightField = new TextField();
             ComboBox<Color> hairColorBox = new ComboBox<>(FXCollections.observableArrayList(Color.values()));
             ComboBox<Country> nationalityBox = new ComboBox<>(FXCollections.observableArrayList(Country.values()));
-
             VBox form = new VBox(10,
                     new Label("Name:"), nameField,
                     new Label("Height:"), heightField,
@@ -188,7 +174,6 @@ public class MainUI extends Application {
             );
             dialog.getDialogPane().setContent(form);
             dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-
             dialog.setResultConverter(button -> {
                 if (button == ButtonType.OK) {
                     try {
@@ -208,25 +193,21 @@ public class MainUI extends Application {
                 }
                 return null;
             });
-
             dialog.showAndWait().ifPresent(reference -> {
-                int count = collectionManager.removeGreater(reference);
+                int count = collectionManager.removeGreater(reference, currentUser.getId());
                 refreshTable();
                 showAlert("Removed Greater", count + " element(s) removed.");
             });
         });
 
-  
         removeLowerBtn.setOnAction(e -> {
             Dialog<Person> dialog = new Dialog<>();
             dialog.setTitle("Remove Lower");
             dialog.setHeaderText("Enter fields for comparison");
-
             TextField nameField = new TextField();
             TextField heightField = new TextField();
             ComboBox<Color> hairColorBox = new ComboBox<>(FXCollections.observableArrayList(Color.values()));
             ComboBox<Country> nationalityBox = new ComboBox<>(FXCollections.observableArrayList(Country.values()));
-
             VBox form = new VBox(10,
                     new Label("Name:"), nameField,
                     new Label("Height:"), heightField,
@@ -235,7 +216,6 @@ public class MainUI extends Application {
             );
             dialog.getDialogPane().setContent(form);
             dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-
             dialog.setResultConverter(button -> {
                 if (button == ButtonType.OK) {
                     try {
@@ -255,15 +235,13 @@ public class MainUI extends Application {
                 }
                 return null;
             });
-
             dialog.showAndWait().ifPresent(reference -> {
-                int count = collectionManager.removeLower(reference);
+                int count = collectionManager.removeLower(reference, currentUser.getId());
                 refreshTable();
                 showAlert("Removed Lower", count + " element(s) removed.");
             });
         });
 
-        // Filter by Name Prefix
         filterBtn.setOnAction(e -> {
             TextInputDialog input = new TextInputDialog();
             input.setTitle("Filter by Name Prefix");
@@ -272,14 +250,12 @@ public class MainUI extends Application {
                 List<Person> matches = collectionManager.getAllPersons().stream()
                         .filter(p -> p.getName().startsWith(prefix))
                         .collect(Collectors.toList());
-
                 if (matches.isEmpty()) {
                     showAlert("Filter Result", "No elements found.");
                 } else {
                     Alert resultAlert = new Alert(Alert.AlertType.INFORMATION);
                     resultAlert.setTitle("Matching Elements");
                     resultAlert.setHeaderText(matches.size() + " element(s) found");
-
                     ListView<String> listView = new ListView<>();
                     matches.forEach(p -> listView.getItems().add(p.toString()));
                     resultAlert.getDialogPane().setContent(listView);
@@ -288,32 +264,24 @@ public class MainUI extends Application {
             });
         });
 
-        // Show collection info
         infoBtn.setOnAction(e -> {
             String info = collectionManager.getInfo();
             showAlert("Collection Info", info);
         });
 
-        // Sorting
         sortAscBtn.setOnAction(e -> FXCollections.sort(personList));
         sortDescBtn.setOnAction(e -> FXCollections.sort(personList, Comparator.reverseOrder()));
 
-        // Layout setup
         Label userLabel = new Label("Current user: " + currentUser.getLogin() + " | id = " + currentUser.getId());
 
-        HBox buttonBar = new HBox(10, addBtn, editBtn, deleteBtn, refreshBtn, saveBtn);
+        HBox buttonBar = new HBox(10, addBtn, editBtn, deleteBtn, refreshBtn);
         buttonBar.setPadding(new Insets(10));
-
-        HBox extraButtonBar = new HBox(10,
-                clearAllBtn, removeMyBtn, removeGreaterBtn, removeLowerBtn, filterBtn, infoBtn
-        );
+        HBox extraButtonBar = new HBox(10, clearAllBtn, removeMyBtn, removeGreaterBtn, removeLowerBtn, filterBtn, infoBtn);
         extraButtonBar.setPadding(new Insets(10));
-
         HBox sortBar = new HBox(10, sortAscBtn, sortDescBtn);
         sortBar.setPadding(new Insets(5));
 
         VBox topPanel = new VBox(5, userLabel, buttonBar, extraButtonBar, sortBar);
-
         BorderPane root = new BorderPane();
         root.setTop(topPanel);
         root.setCenter(tableView);
@@ -322,26 +290,6 @@ public class MainUI extends Application {
         primaryStage.setTitle("Laboratory Management System");
         primaryStage.setScene(scene);
         primaryStage.show();
-    }
-
-    private void loadDataFromFile() {
-        File file = new File(fileName);
-        if (!file.exists()) {
-            System.out.println("File not found. Starting with empty collection.");
-            collectionManager.clear();
-            refreshTable();
-            return;
-        }
-        try {
-            List<Person> persons = fileStorage.load(fileName);
-            collectionManager.clear();
-            for (Person p : persons) {
-                collectionManager.addPerson(p);
-            }
-            refreshTable();
-        } catch (Exception e) {
-            showAlert("Load Error", "Could not load from file: " + e.getMessage());
-        }
     }
 
     private void buildTableColumns() {
@@ -372,22 +320,7 @@ public class MainUI extends Application {
         TableColumn<Person, Location> locCol = new TableColumn<>("Location");
         locCol.setCellValueFactory(new PropertyValueFactory<>("location"));
 
-        tableView.getColumns().addAll(
-                idCol, ownerCol, nameCol, heightCol, hairCol, natCol, coordsCol, locCol
-        );
-    }
-
-    private void saveToFile() {
-        try {
-            fileStorage.save(fileName, collectionManager.getAllPersons());
-            showAlert("Saved", "Data saved to " + fileName);
-        } catch (Exception e) {
-            showAlert("Save Error", "Failed to save: " + e.getMessage());
-        }
-    }
-
-    private void refreshFromFile() {
-        loadDataFromFile();
+        tableView.getColumns().addAll(idCol, ownerCol, nameCol, heightCol, hairCol, natCol, coordsCol, locCol);
     }
 
     private void refreshTable() {
@@ -454,12 +387,8 @@ public class MainUI extends Application {
         });
 
         dialog.showAndWait().ifPresent(person -> {
-            try {
-                collectionManager.addPerson(person, currentUser.getId());
-                refreshTable();
-            } catch (IllegalArgumentException e) {
-                showAlert("Validation Error", e.getMessage());
-            }
+            collectionManager.addPerson(person, currentUser.getId());
+            refreshTable();
         });
     }
 
@@ -470,7 +399,7 @@ public class MainUI extends Application {
             return;
         }
         if (selected.getOwnerID() != currentUser.getId()) {
-            showAlert("Access denied", "Вы не можете изменять чужой объект");
+            showAlert("Access denied", "You cannot edit another user's object.");
             return;
         }
         Dialog<Person> dialog = new Dialog<>();
@@ -517,18 +446,12 @@ public class MainUI extends Application {
         });
 
         dialog.showAndWait().ifPresent(updated -> {
-            try {
-                boolean success = collectionManager.updatePerson(updated.getId(), updated, currentUser.getId());
-
-                if (!success) {
-                    showAlert("Access denied", "Вы не можете изменять чужой объект");
-                    return;
-                }
-
-                refreshTable();
-            } catch (IllegalArgumentException e) {
-                showAlert("Validation Error", e.getMessage());
+            boolean success = collectionManager.updatePerson(selected.getId(), updated, currentUser.getId());
+            if (!success) {
+                showAlert("Access denied", "You cannot edit another user's object.");
+                return;
             }
+            refreshTable();
         });
     }
 
@@ -539,18 +462,16 @@ public class MainUI extends Application {
             return;
         }
         if (selected.getOwnerID() != currentUser.getId()) {
-            showAlert("Access denied", "Вы не можете удалять чужой объект");
+            showAlert("Access denied", "You cannot delete another user's object.");
             return;
         }
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Delete " + selected.getName() + "?", ButtonType.YES, ButtonType.NO);
         if (confirm.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
             boolean success = collectionManager.removeById(selected.getId(), currentUser.getId());
-
             if (!success) {
-                showAlert("Access denied", "Вы не можете удалять чужой объект");
+                showAlert("Access denied", "You cannot delete another user's object.");
                 return;
             }
-
             refreshTable();
         }
     }

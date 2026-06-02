@@ -1,2 +1,39 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<persons/>
+<persons>
+    <person>
+        <id>1</id>
+        <ownerID>4</ownerID>
+        <name>Test</name>
+        <coordinates>
+            <x>1</x>
+            <y>1.0</y>
+        </coordinates>
+        <creationDate>1780367423954</creationDate>
+        <height>1.0</height>
+        <hairColor>GREEN</hairColor>
+        <nationality>RUSSIA</nationality>
+        <location>
+            <x>1.0</x>
+            <y>1.0</y>
+            <z>1</z>
+        </location>
+    </person>
+    <person>
+        <id>2</id>
+        <ownerID>4</ownerID>
+        <name>Test2</name>
+        <coordinates>
+            <x>1</x>
+            <y>1.0</y>
+        </coordinates>
+        <creationDate>1780367553374</creationDate>
+        <height>2.0</height>
+        <hairColor>YELLOW</hairColor>
+        <nationality>CHINA</nationality>
+        <location>
+            <x>1.0</x>
+            <y>1.0</y>
+            <z>1</z>
+        </location>
+    </person>
+</persons>
